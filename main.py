@@ -13,7 +13,7 @@ import os
 app = FastAPI()
 
 # For self-pinging
-PING_INTERVAL = 600  # 10 minutes in seconds
+PING_INTERVAL = 300  # 5 minutes in seconds
 is_pinging = False
 ping_thread = None
 

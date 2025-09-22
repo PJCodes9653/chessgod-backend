@@ -61,7 +61,7 @@ def classify_cp_loss(cp_loss: int, is_best_move: bool) -> str:
         return "mistake"
     return "blunder"
 
-
+   
 def chesscom_accuracy_from_acl(acl: float) -> float:
     """
     Approximate Chess.com-style formula based on curve fit.
