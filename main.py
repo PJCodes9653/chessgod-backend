@@ -1,11 +1,12 @@
-from fastapi import FastAPI, UploadFile, Form, BackgroundTasks
+from fastapi import FastAPI, UploadFile, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from analysis.analyzer import analyze_game
 import chess.pgn
 import io
-import asyncio
-import aiohttp
+import threading
+import time
+import requests
 from datetime import datetime
 import os
 
@@ -14,37 +15,34 @@ app = FastAPI()
 # For self-pinging
 PING_INTERVAL = 600  # 10 minutes in seconds
 is_pinging = False
+ping_thread = None
 
-async def ping_self():
-    """Background task that pings itself every PING_INTERVAL seconds"""
-    global is_pinging
-    if is_pinging:
-        return
-    
-    is_pinging = True
-    
+def ping_self():
+    """Background thread that pings itself every PING_INTERVAL seconds"""
     # Get the URL from environment or default to localhost
     base_url = os.getenv('RENDER_EXTERNAL_URL', 'http://localhost:8000')
     
-    async with aiohttp.ClientSession() as session:
-        while True:
-            try:
-                async with session.get(f"{base_url}/ping") as response:
-                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    if response.status == 200:
-                        print(f"[{now}] Self-ping successful")
-                    else:
-                        print(f"[{now}] Self-ping failed with status {response.status}")
-            except Exception as e:
-                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                print(f"[{now}] Self-ping error: {str(e)}")
-            
-            await asyncio.sleep(PING_INTERVAL)
+    while True:
+        try:
+            response = requests.get(f"{base_url}/ping")
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            if response.status_code == 200:
+                print(f"[{now}] Self-ping successful")
+            else:
+                print(f"[{now}] Self-ping failed with status {response.status_code}")
+        except Exception as e:
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"[{now}] Self-ping error: {str(e)}")
+        
+        time.sleep(PING_INTERVAL)
 
 @app.on_event("startup")
-async def startup_event():
-    """Start the self-pinging task when the app starts"""
-    asyncio.create_task(ping_self())
+def startup_event():
+    """Start the self-pinging thread when the app starts"""
+    global ping_thread
+    if ping_thread is None:
+        ping_thread = threading.Thread(target=ping_self, daemon=True)
+        ping_thread.start()
 
 # Allow requests from the extension and localhost development
 app.add_middleware(
