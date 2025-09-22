@@ -4,45 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from analysis.analyzer import analyze_game
 import chess.pgn
 import io
-import threading
-import time
-import requests
-from datetime import datetime
-import os
 
 app = FastAPI()
-
-# For self-pinging
-PING_INTERVAL = 300  # 5 minutes in seconds
-is_pinging = False
-ping_thread = None
-
-def ping_self():
-    """Background thread that pings itself every PING_INTERVAL seconds"""
-    # Get the URL from environment or default to localhost
-    base_url = os.getenv('RENDER_EXTERNAL_URL', 'http://localhost:8000')
-    
-    while True:
-        try:
-            response = requests.get(f"{base_url}/ping")
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            if response.status_code == 200:
-                print(f"[{now}] Self-ping successful")
-            else:
-                print(f"[{now}] Self-ping failed with status {response.status_code}")
-        except Exception as e:
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f"[{now}] Self-ping error: {str(e)}")
-        
-        time.sleep(PING_INTERVAL)
-
-@app.on_event("startup")
-def startup_event():
-    """Start the self-pinging thread when the app starts"""
-    global ping_thread
-    if ping_thread is None:
-        ping_thread = threading.Thread(target=ping_self, daemon=True)
-        ping_thread.start()
 
 # Allow requests from the extension and localhost development
 app.add_middleware(
@@ -56,11 +19,6 @@ app.add_middleware(
 @app.get("/")
 def root():
     return {"message": "Chess Analyzer Backend running"}
-
-@app.get("/ping")
-async def ping():
-    """Endpoint for self-pinging to keep the service alive"""
-    return {"status": "alive", "time": datetime.now().isoformat()}
 
 @app.post("/analyze")
 async def analyze(file: UploadFile, url: str | None = Form(None), depth: str | None = Form(None)):
